@@ -1,0 +1,319 @@
+from tkinter import *
+from PIL import ImageTk, Image
+from math import floor
+import turtle
+from tkinter import Canvas, Label, Entry, Button, Toplevel, BOTH, YES, messagebox
+import threading
+import pyttsx3
+
+dirs = [[0, 1], [1, 0], [-1, 0], [0, -1]]
+
+engine = pyttsx3.init()
+rate = engine.getProperty("rate")
+engine.setProperty("rate", 120)
+volume = engine.getProperty("volume")
+engine.setProperty("volume", 1.0)
+
+front = Tk()
+front.title("Robot on Ice")
+front.configure(bg="#ffffff")
+
+engine = pyttsx3.init()
+
+voices = engine.getProperty('voices')
+engine.setProperty('voice', voices[0].id)
+
+def speak(text):
+    engine.say(text)
+    engine.runAndWait()
+
+background_image = Image.open(r"C:\Users\neeli\Downloads\Screenshot 2023-03-07 130240.png")
+background_image = background_image.resize((front.winfo_screenwidth(), front.winfo_screenheight()))
+background_photo = ImageTk.PhotoImage(background_image)
+canvas = Canvas(front, width=front.winfo_screenwidth(), height=front.winfo_screenheight(), bg="#ffffff")
+canvas.pack()
+canvas.create_image(0, 0, anchor='nw', image=background_photo)
+gif = Image.open(r"C:\Users\neeli\Downloads\robot 2.gif")
+frames = []
+try:
+    while True:
+        frames.append(gif.copy())
+        gif.seek(len(frames)) # move to next frame
+except EOFError: # end of sequence
+    pass
+cropped_frames = [frame.crop((0, 0, 300, 300)) for frame in frames]
+gif_frames = [ImageTk.PhotoImage(frame) for frame in cropped_frames]
+def animate_gif(frame_index):
+    canvas.create_image(front.winfo_screenwidth()//2, front.winfo_screenheight()//2, image=gif_frames[frame_index])
+    front.after(50, animate_gif, (frame_index + 1) % len(gif_frames))
+
+front.after(100, speak, "Welcome to the islands. I am Alex. Can you help me find out my path?")
+animate_gif(1)
+
+def speak_labels(event):
+    engine.say("Enter the grid size")
+    engine.say("Number of Rows")
+    engine.say("Number of Columns")
+    engine.say("Enter the checkin sequences :")
+    engine.runAndWait()
+
+def move_to_next_textbox(event, next_textbox, label_text):
+    next_textbox.focus_set()
+    engine.say(label_text)
+    engine.runAndWait()
+
+
+def trace_path2(path,m,n):
+    checkpoint=[(m*n)/4,(m*n)/2,(m*n)*(3/4)]
+    t = turtle.Turtle()
+    screen = t.getscreen()
+    screen.setup(width=800, height=600)
+    screen.bgcolor("light blue")
+    screen.bgpic(r"C:\Users\neeli\OneDrive\Pictures\icesurface final last.png")
+    x, y = -650,300
+    font = ("my_font.ttf", 30)
+    t.penup()
+    t.goto(x, y)
+    t.write("the 1st checkpoint is the 4 th step",font=font)
+    t.goto(-650,200)
+    t.write("the 2nd checkpoint is the 9 th step ",font=font)
+    t.goto(-650,100)
+    t.write("the 3rd checkpoint is the 13 th step " ,font=font)
+    t.goto(-650,50)
+    t.speed(7)
+
+    # Define the grid dimensions
+    num_rows, num_cols = m, n
+    cell_size = 130
+
+    for i in range(num_rows):
+        for j in range(num_cols):
+            x = j * cell_size
+            y = i * cell_size
+            t.penup()
+            t.goto(x, y)
+            t.pendown()
+            t.setheading(0)
+            t.forward(cell_size)
+            t.right(90)
+            t.forward(cell_size)
+            t.right(90)
+            t.forward(cell_size)
+            t.right(90)
+            t.forward(cell_size)
+            t.right(90)
+            t.forward(cell_size)
+
+        # Draw the path
+    turtle.register_shape(r"C:\Users\neeli\OneDrive\Pictures\robot walking final .gif")
+
+    # Create a turtle instance and set its shape to the registered imag
+    t.shape(r"C:\Users\neeli\OneDrive\Pictures\robot walking final .gif")
+    t.penup()
+    t.goto(cell_size / 2, -cell_size / 2)
+    t.pendown()
+    t.speed(2)
+    for row, col in path:
+        x, y = col * cell_size + cell_size / 2, row * cell_size - cell_size / 2
+        t.goto(x, y)
+    t.penup()
+    t.goto(0,-130)
+    t.write("START",font = font)
+    t.goto(150,-130)
+    t.write("END",font = font)
+    t.goto(150,150)
+    t.write("4",font=font)
+    t.goto(570,150)
+    t.write("9",font=font)
+    t.goto(570,-100)
+    t.write("13",font=font)
+    t.goto(-570,-150)
+    t.pendown()
+
+    turtle.done()
+
+
+# Function to perform DFS traversal and count the number of reachable cells
+def dfs_count(x, y, visited2, m, n):
+    if x < 0 or y < 0 or x >= m or y >= n:
+        return 0
+    if visited2[x][y]:
+        return 0
+    visited2[x][y] = True
+    sum = 1
+    for dir in dirs:
+        nextX = dir[0] + x
+        nextY = dir[1] + y
+        sum += dfs_count(nextX, nextY, visited2, m, n)
+    return sum
+
+# Function to perform DFS traversal and check if a given cell can be visited
+def dfs_check(x, y, steps, visited, visited2, t, checkpoints, total, m, n):
+    if x < 0 or y < 0 or x >= m or y >= n:
+        return 0
+    if visited[x][y]:
+        return 0
+    elif steps == checkpoints[3]:
+        return 1
+    elif steps == checkpoints[2]:
+        if x != t[2][0] or y != t[2][1]:
+            return 0
+    elif steps == checkpoints[1]:
+        if x != t[1][0] or y != t[1][1]:
+            return 0
+    elif steps == checkpoints[0]:
+        if x != t[0][0] or y != t[0][1]:
+            return 0
+    else:
+        for i in range(4):
+            if x == t[i][0] and y == t[i][1]:
+                return 0
+            dist = abs(x - t[i][0]) + abs(y - t[i][1])
+            turns_Left = checkpoints[i] - steps
+            if turns_Left > 0 and turns_Left < dist:
+                return 0
+
+    cnt = dfs_count(0, 0, visited2, m, n)
+    if cnt == total - steps:
+        return 0
+    visited[x][y] = True
+
+    path = 0
+    for dir in dirs:
+        nextX = dir[0] + x
+        nextY = dir[1] + y
+        path += dfs_check(nextX, nextY, steps + 1, visited, visited2, t, checkpoints, total, m, n)
+    visited[x][y] = False
+    return path
+
+def dfs_paths(x, y, steps, visited, visited2, t, checkpoints, total, m, n, path):
+    if x < 0 or y < 0 or x >= m or y >= n:
+        return []
+    if visited[x][y]:
+        return []
+    elif steps == checkpoints[3]:
+        path.append([x, y])
+        print("path:", path)
+        #turtle.setworldcoordinates(0, 0,n,m)
+        trace_path2(path,m,n)
+        #draw_grid(path,n,m)
+    elif steps == checkpoints[2]:
+
+        if x != t[2][0] or y != t[2][1]:
+            return []
+    elif steps == checkpoints[1]:
+        if x != t[1][0] or y != t[1][1]:
+            return []
+    elif steps == checkpoints[0]:
+        if x != t[0][0] or y != t[0][1]:
+            return []
+    else:
+        for i in range(4):
+            if x == t[i][0] and y == t[i][1]:
+                return []
+            dist = abs(x - t[i][0]) + abs(y - t[i][1])
+            turns_Left = checkpoints[i] - steps
+            if turns_Left > 0 and turns_Left < dist:
+                return []
+
+    cnt = dfs_count(0, 0, visited2, m, n)
+    if cnt == total - steps:
+        return []
+    visited[x][y] = True
+    path.append([x, y])
+    for dir in dirs:
+        nextX = dir[0] + x
+        nextY = dir[1] + y
+        result = dfs_paths(nextX, nextY, steps + 1, visited, visited2, t, checkpoints, total, m, n, path)
+        if result:
+            return result
+    path.pop()
+    visited[x][y] = False
+
+def run_algorithm(m, n, c1, c2, c3, c4, c5, c6, empty_label):
+
+    if m == 0 and n == 0 or (m < 2 or n > 8 or m < 2 or n > 8):
+        return "Invalid input"
+    t = [[0, 0] for _ in range(3)]
+    t.append([0, 1])
+    t[0][0] = c1
+    t[0][1] = c2
+    t[1][0] = c3
+    t[1][1] = c4
+    t[2][0] = c5
+    t[2][1] = c6
+    visited = [[False for _ in range(n)] for _ in range(m)]
+    visited2 = [[False for _ in range(n)] for _ in range(m)]
+    path = []
+    total = n * m
+    checkpoints = [floor(total / 4), floor(total / 2), floor(3 * total / 4), n * m]
+    result = dfs_check(0, 0, 1, visited, visited2, t, checkpoints, total, m, n)
+    empty_label.config(text='case 1 :  '+str(result))
+    dfs_paths(0, 0, 1, visited, visited2, t, checkpoints, total, m, n, path)
+
+def create_gui():
+    front.destroy()
+    parent =Tk()
+    parent.title("Robot on Ice")
+    parent.configure(bg="#ffffff")
+    canvas = Canvas(parent, width=parent.winfo_screenwidth(), height=parent.winfo_screenheight(), bg="white")
+    canvas.pack(fill=BOTH, expand=YES)
+    bg_image = Image.open(r"C:\Users\neeli\Downloads\second_ice.jpg")
+    bg_image = bg_image.resize((parent.winfo_screenwidth(), parent.winfo_screenheight()))
+    bg_photo = ImageTk.PhotoImage(bg_image)
+    canvas.create_image(0, 0, anchor='nw', image=bg_photo)
+
+    def speak_label(label):
+        engine.say(label.cget("text"))
+        engine.runAndWait()
+
+    label1 = Label(parent, text='Enter the grid size', fg='blue', font=('Arial', 14))
+    label1.place(x=50, y=50)
+    parent.after(1000, speak_label, label1)
+
+    label2 = Label(parent, text='Number of Rows:', fg='blue', font=('Arial', 14))
+    label2.place(x=50, y=100)
+    parent.after(2000, speak_label, label2)
+
+    label3 = Label(parent, text='Number of columns :', fg='blue', font=('Arial', 14))
+    label3.place(x=50, y=150)
+    parent.after(3000, speak_label, label3)
+
+    label4 = Label(parent, text='Enter the checkin sequences :', fg='blue', font=('Arial', 14))
+    label4.place(x=50, y=200)
+    parent.after(4000, speak_label, label4)
+
+    global size_of_row, size_of_column, c1, c2, c3, c4, c5, c6, t, empty_label, cases
+    size_of_row = IntVar()
+    size_of_column = IntVar()
+    c1 = IntVar()
+    c2 = IntVar()
+    c3 = IntVar()
+    c4 = IntVar()
+    c5 = IntVar()
+    c6 = IntVar()
+    textbox1 = Entry(parent, textvariable=size_of_row, fg='blue', font=('Arial', 14))
+    textbox1.place(x=250, y=100)
+    textbox2 = Entry(parent, textvariable=size_of_column, fg='blue', font=('Arial', 14))
+    textbox2.place(x=250, y=150)
+    textbox3 = Entry(parent, textvariable=c1, fg='blue', font=('Arial', 14))
+    textbox3.place(x=350, y=200)
+    textbox4 = Entry(parent, textvariable=c2, fg='blue', font=('Arial', 14))
+    textbox4.place(x=350, y=250)
+    textbox5 = Entry(parent, textvariable=c3, fg='blue', font=('Arial', 14))
+    textbox5.place(x=350, y=300)
+    textbox6 = Entry(parent, textvariable=c4, fg='blue', font=('Arial', 14))
+    textbox6.place(x=350, y=350)
+    textbox7 = Entry(parent, textvariable=c5, fg='blue', font=('Arial', 14))
+    textbox7.place(x=350, y=400)
+    textbox8 = Entry(parent, textvariable=c6, fg='blue', font=('Arial', 14))
+    textbox8.place(x=350, y=450)
+    empty_label = Label(parent, fg='green', font=('Arial', 14))
+    empty_label.place(x=500, y=500)
+    button1 = Button(parent, command=lambda: run_algorithm(size_of_row.get(), size_of_column.get(), c1.get(), c2.get(),c3.get(), c4.get(), c5.get(), c6.get(),empty_label), text="solve", fg='green', font=('Arial', 20))
+    button1.place(x=400, y=500)
+    parent.mainloop()
+
+button = Button(front,text="START",command=create_gui,width = 10,height = 2,font =('Arial',40))
+button.place(x=100, y=100)
+front.mainloop()
